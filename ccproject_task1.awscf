@@ -1,0 +1,782 @@
+{
+    "Outputs": {
+        "PublicIp": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "ECBASTION",
+                    "PublicIp"
+                ]
+            },
+            "Description": "Bastion's PublicIp Address"
+        }
+    },
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "UserIPParameter": {
+            "Type": "String",
+            "Description": "Your IP."
+        },
+        "InstanceKeyPairParameter": {
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Description": "Enter SSH key name."
+        },
+        "InstanceAmiParameter": {
+            "Type": "AWS::EC2::Image::Id",
+            "Default": "ami-0323c3dd2da7fb37d",
+            "Description": "Choose instance AMI."
+        },
+        "ClusterInstanceTypeParameter": {
+            "Type": "String",
+            "Default": "t2.micro",
+            "AllowedValues": [
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "t2.xlarge",
+                "t2.2xlarge"
+            ],
+            "Description": "Choose cluster instance type."
+        },
+        "CassandraInstanceTypeParameter": {
+            "Type": "String",
+            "Default": "i3.large",
+            "AllowedValues": [
+                "i3.large",
+                "i3.xlarge",
+                "i3.2xlarge"
+            ],
+            "Description": "Choose cluster instance type."
+        },
+        "AvailabilityZoneParameter": {
+            "Type": "AWS::EC2::AvailabilityZone::Name",
+            "Description": "Select availability zone."
+        }
+    },
+    "Resources": {
+        "SNPUB": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": "10.0.0.0/24",
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox public"
+                    }
+                ]
+            }
+        },
+        "SNPRIV": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": "10.0.1.0/24",
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox private"
+                    }
+                ]
+            }
+        },
+        "VPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/16",
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames": "true",
+                "InstanceTenancy": "default",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox"
+                    }
+                ]
+            }
+        },
+        "EIP": {
+            "Type": "AWS::EC2::EIP",
+            "Properties": {
+                "Domain": "vpc",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox"
+                    }
+                ]
+            }
+        },
+        "NAT": {
+            "Type": "AWS::EC2::NatGateway",
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "EIP",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "SNPUB"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox"
+                    }
+                ]
+            }
+        },
+        "RTPUB": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox public"
+                    }
+                ]
+            }
+        },
+        "RTPRIV": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox private"
+                    }
+                ]
+            }
+        },
+        "RNAT": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "RTPRIV"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "NAT"
+                }
+            }
+        },
+        "RIGW": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "RTPUB"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "IGW"
+                }
+            }
+        },
+        "IGW": {
+            "Type": "AWS::EC2::InternetGateway",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox"
+                    }
+                ]
+            }
+        },
+        "SGPRIV": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Cluster group",
+                "GroupName": "Cluster group",
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "IpProtocol": -1
+                    }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "IpProtocol": -1
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox private"
+                    }
+                ]
+            }
+        },
+        "SGPUB": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Bastion group",
+                "GroupName": "Bastion group",
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "IpProtocol": -1
+                    }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "UserIPParameter"
+                                    },
+                                    "32"
+                                ]
+                            ]
+                        },
+                        "FromPort": 22,
+                        "ToPort": 22,
+                        "IpProtocol": "tcp"
+                    },
+                    {
+                        "CidrIp": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "UserIPParameter"
+                                    },
+                                    "32"
+                                ]
+                            ]
+                        },
+                        "FromPort": 80,
+                        "ToPort": 80,
+                        "IpProtocol": "tcp"
+                    },
+                    {
+                        "CidrIp": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "UserIPParameter"
+                                    },
+                                    "32"
+                                ]
+                            ]
+                        },
+                        "FromPort": 80,
+                        "ToPort": 80,
+                        "IpProtocol": "tcp"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox public"
+                    }
+                ]
+            }
+        },
+        "ECBASTION": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "IamInstanceProfile": "ccproject",
+                "InstanceType": "t2.medium",
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPUB"
+                            }
+                        ],
+                        "SubnetId": {
+                            "Ref": "SNPUB"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox bastion"
+                    }
+                ]
+            }
+        },
+        "ECMASTER": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "IamInstanceProfile": "ccproject",
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": "t2.xlarge",
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.10",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox master"
+                    }
+                ]
+            }
+        },
+        "DATAVOL": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "SnapshotId": "snap-e1608d88",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Transportation data"
+                    }
+                ],
+                "VolumeType": "gp2"
+            }
+        },
+        "EC2VA123TD": {
+            "Type": "AWS::EC2::VolumeAttachment",
+            "Properties": {
+                "Device": "/dev/sdf",
+                "VolumeId": {
+                    "Ref": "DATAVOL"
+                },
+                "InstanceId": {
+                    "Ref": "ECMASTER"
+                }
+            }
+        },
+        "ECNODE1": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "ClusterInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.21",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node1"
+                    }
+                ]
+            }
+        },
+        "ECNODE2": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "ClusterInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.22",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node2"
+                    }
+                ]
+            }
+        },
+        "ECNODE3": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "ClusterInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.23",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node3"
+                    }
+                ]
+            }
+        },
+        "ECNODE4": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "ClusterInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.24",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node4"
+                    }
+                ]
+            }
+        },
+        "ECNODE5": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "ClusterInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.25",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node5"
+                    }
+                ]
+            }
+        },
+        "ECNODE6": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "ClusterInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.26",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node6"
+                    }
+                ]
+            }
+        },
+        "ECNODE7": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "CassandraInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.27",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node7"
+                    }
+                ]
+            }
+        },
+        "ECNODE8": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "CassandraInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.28",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node8"
+                    }
+                ]
+            }
+        },
+        "ECNODE9": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZoneParameter"
+                },
+                "ImageId": {
+                    "Ref": "InstanceAmiParameter"
+                },
+                "InstanceType": {
+                    "Ref": "CassandraInstanceTypeParameter"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKeyPairParameter"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": true,
+                        "DeviceIndex": "0",
+                        "GroupSet": [
+                            {
+                                "Ref": "SGPRIV"
+                            }
+                        ],
+                        "PrivateIpAddress": "10.0.1.29",
+                        "SubnetId": {
+                            "Ref": "SNPRIV"
+                        }
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Cluster sandbox node9"
+                    }
+                ]
+            }
+        },
+        "EC2SRTA1Q5HG": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "RTPUB"
+                },
+                "SubnetId": {
+                    "Ref": "SNPUB"
+                }
+            }
+        },
+        "EC2SRTA1XWFV": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "RTPRIV"
+                },
+                "SubnetId": {
+                    "Ref": "SNPRIV"
+                }
+            }
+        },
+        "EC2VPCG32RSZ": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "InternetGatewayId": {
+                    "Ref": "IGW"
+                }
+            }
+        }
+    }
+}
+²

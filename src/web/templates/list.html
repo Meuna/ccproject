@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<ol>
+  {% for key, value in results %}
+  <li>
+    <span style="display: inline-block; min-width: 50px;">{{ key }}</span>
+    <span style="display: inline-block; min-width: 60px; text-align: right;">{{ value | round(3) }}</span>
+    </li>
+  {% endfor %}
+</ol>
+{% endblock %}

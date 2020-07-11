@@ -1,0 +1,7 @@
+---
+- include: root_tasks.yml
+  become: true
+
+- include: kafka_tasks.yml
+  become: true
+  become_user: kafka

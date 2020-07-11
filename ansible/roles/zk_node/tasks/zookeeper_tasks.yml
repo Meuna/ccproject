@@ -1,0 +1,22 @@
+---
+- name: Download and unpack Zookeeper release
+  unarchive:
+    src: https://downloads.apache.org/zookeeper/zookeeper-{{zk_version}}/apache-zookeeper-{{zk_version}}-bin.tar.gz
+    dest: "{{ zk_home | dirname }}"
+    remote_src: true
+
+- name: Setup .bashrc
+  blockinfile:
+    dest: ~/.bashrc
+    state: present
+    block: |
+      export ZK_HOME={{ zk_home }}
+      export PATH=${PATH}:${ZK_HOME}/bin
+
+- name: Setup zoo.conf
+  copy:
+    dest: "{{ zk_home }}/conf/zoo.cfg"
+    content: |
+      tickTime=2000
+      dataDir=/data/zookeeper
+      clientPort=2181

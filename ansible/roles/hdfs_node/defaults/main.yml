@@ -1,0 +1,2 @@
+hadoop_version: 3.2.1
+hadoop_home: /home/hadoop/hadoop-{{hadoop_version}}

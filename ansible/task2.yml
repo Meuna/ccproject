@@ -1,0 +1,35 @@
+---
+- hosts: all
+  roles:
+    - node
+
+- hosts: zk_cluster:storm_cluster
+  become: true
+  tasks:
+
+  - name: Create a ext4 filesystem on /dev/sdf and check disk blocks
+    filesystem:
+      fstype: ext4
+      dev: /dev/sdb
+
+  - name: Mount /data folder
+    mount:
+      path: /data
+      src: /dev/sdb
+      fstype: ext4
+      state: mounted
+
+- hosts: zk_cluster
+  roles:
+    - zk_node
+
+- import_playbook: storm_cluster.yml
+
+- hosts: cassandra_cluster
+  roles:
+    - cassandra_node
+
+- hosts: bastion
+  roles:
+    - reverse_proxy
+    - webserver

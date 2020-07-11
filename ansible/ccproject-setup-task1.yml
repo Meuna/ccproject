@@ -1,0 +1,42 @@
+---
+- name: Setup ccproject data
+  hosts: master
+  become: true
+  tasks:
+
+  - name: Mount /ccproject_data data folder
+    mount:
+      path: /ccproject_data
+      src: /dev/sdf
+      fstype: iso9660
+      state: mounted
+
+- name: Intall node libs
+  hosts: hdfs_cluster
+  become: true
+  tasks:
+
+  - name: Install boto3
+    pip:
+      name: boto3
+
+  - name: Install cassandra-driver
+    pip:
+      name: cassandra-driver
+
+- name: Setup ccproject data
+  hosts: master
+  become: true
+  become_user: hadoop
+  tasks:
+
+  - name: Upload ccproject code
+    copy:
+      src: ../src
+      dest: "~"
+
+  - name: Create DynamoDB tables
+    shell: python ~/src/batch/python/setup_dynamodb.py
+
+  - name: Create CassandraDB tables
+    shell: python ~/src/batch/python/setup_cassandradb.py

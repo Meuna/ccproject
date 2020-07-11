@@ -1,0 +1,13 @@
+---
+- include_vars: "{{ ec_type_master }}.yaml"
+  when: "'hdfs_master' in group_names"
+
+- include_vars: "{{ ec_type_node }}.yaml"
+  when: "'hdfs_worker' in group_names"
+
+- include: root_tasks.yml
+  become: true
+
+- include: hadoop_tasks.yml
+  become: true
+  become_user: hadoop

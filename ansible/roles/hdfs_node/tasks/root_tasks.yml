@@ -1,0 +1,17 @@
+---
+- name: Make sure java 8 is present
+  yum:
+    name: java-1.8.0-openjdk
+    state: present
+
+- name: Add c user
+  user:
+    name: hadoop
+    state: present
+
+- name: Make hadoop data directory
+  file:
+    path: /data/hadoop
+    owner: hadoop
+    group: hadoop
+    state: directory

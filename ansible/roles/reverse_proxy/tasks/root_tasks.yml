@@ -1,0 +1,15 @@
+---
+- name: Make sure httpd is installed
+  yum:
+    name: httpd
+    state: present
+
+- name: Setup ccproject.conf
+  copy:
+    dest: /etc/httpd/conf.d/ccproject.conf
+    content: ProxyPass "/" "http://master:8081/"
+
+- name: Restart httpd
+  service:
+    name: httpd
+    state: restarted

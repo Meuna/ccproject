@@ -1,0 +1,53 @@
+---
+- name: Make sure java 8 is present
+  yum:
+    name: java-1.8.0-openjdk
+    state: present
+
+- name: Add storm user
+  user:
+    name: storm
+    state: present
+
+- name: Make storm data directory
+  file:
+    path: /data/storm
+    owner: storm
+    group: storm
+    state: directory
+
+- name: Setup supervisord.conf
+  notify: supervisord reload
+  blockinfile:
+    dest: ~/supervisord.conf
+    marker: "; {mark} STORM BLOCK"
+    block: |
+      [program:storm-nimbus]
+      directory={{ storm_home }}
+      command={{ storm_home }}/bin/storm nimbus
+      user=storm
+      autostart=false
+      autorestart=true
+      startsecs=10
+      stopasgroup=true
+      redirect_stderr=true
+
+      [program:storm-supervisor]
+      directory={{ storm_home }}
+      command={{ storm_home }}/bin/storm supervisor
+      user=storm
+      autostart=false
+      autorestart=true
+      startsecs=10
+      stopasgroup=true
+      redirect_stderr=true
+
+      [program:storm-ui]
+      directory={{ storm_home }}
+      command={{ storm_home }}/bin/storm ui
+      user=storm
+      autostart=false
+      autorestart=true
+      startsecs=10
+      stopasgroup=true
+      redirect_stderr=true

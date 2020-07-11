@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3>Trip {{ results['origin'] }} &#x2192; {{ results['dest1'] }} &#x2192; {{ results['dest2'] }} on {{ results['date1'] }}</h3>
+<h5>Total delay: {{ results['total_delay'] | round(2)}}<h5>
+<div class="container">
+  <div class="col-sm-2">
+    <h4>{{ results['origin'] }} &#x2192; {{ results['dest1'] }}</h4>
+    <p>Departure: {{ results['datetime1'] }}</p>
+    <p>Flight no: {{ results['flight1'] }}</p>
+  </div>
+  <div class="col-sm-2">
+    <h4>{{ results['dest1'] }} &#x2192; {{ results['dest2'] }}</h4>
+    <p>Departure: {{ results['datetime2'] }}</p>
+    <p>Flight no: {{ results['flight2'] }}</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+---
+- name: Install cassandra-driver
+  pip:
+    name: cassandra-driver
+
+- name: Install flask
+  pip:
+    name: flask
+
+- name: Upload web code
+  copy:
+    src: ../src/web
+    dest: "{{ ccproject_web_home }}"
+
+- name: Setup supervisord.conf
+  notify: supervisord reload
+  blockinfile:
+    dest: ~/supervisord.conf
+    marker: "; {mark} CCPROJECT WEB BLOCK"
+    block: |
+      [program:ccproject-web]
+      directory={{ ccproject_web_home }}/web
+      command=flask run --host=0.0.0.0 --port=8080
+      autorestart=true
+      startsecs=10
+      redirect_stderr=true
+      environment=FLASK_APP={{ ccproject_web_home }}/web/webapp.py

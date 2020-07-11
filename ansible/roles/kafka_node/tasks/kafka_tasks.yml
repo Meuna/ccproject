@@ -1,0 +1,42 @@
+---
+- name: Download and unpack Kafka release
+  unarchive:
+    src: https://downloads.apache.org/kafka/{{kafka_version}}/kafka_{{scala_version}}-{{kafka_version}}.tgz
+    dest: "{{ kafka_home | dirname }}"
+    remote_src: true
+
+- name: Setup .bashrc
+  blockinfile:
+    dest: ~/.bashrc
+    state: present
+    block: |
+      export KAFKA_HOME={{ kafka_home }}
+      export PATH=${PATH}:${KAFKA_HOME}/bin
+
+- name: Setup server.properties
+  template:
+    src: server.properties.j2
+    dest: "{{ kafka_home }}/config/server.properties"
+
+- name: Setup connect-distributed.properties
+  copy:
+    dest: "{{ kafka_home }}/config/connect-distributed.properties"
+    content: |
+      bootstrap.servers={{ groups['kafka_cluster'] | map('regex_replace', '^(.*)$', '\1:9092') | join(',') }}
+      group.id=ccproject-connect-cluster
+      offset.storage.topic=ccproject-connect-offsets
+      offset.storage.replication.factor=1
+
+      config.storage.topic=ccproject-connect-configs
+      config.storage.replication.factor=1
+
+      status.storage.topic=ccproject-connect-status
+      status.storage.replication.factor=1
+
+      key.converter=org.apache.kafka.connect.json.JsonConverter
+      value.converter=org.apache.kafka.connect.json.JsonConverter
+
+      key.converter.schemas.enable=true
+      value.converter.schemas.enable=true
+
+      offset.flush.interval.ms=100000

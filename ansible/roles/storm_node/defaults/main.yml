@@ -1,0 +1,2 @@
+storm_version: 2.1.0
+storm_home: /home/storm/apache-storm-{{storm_version}}

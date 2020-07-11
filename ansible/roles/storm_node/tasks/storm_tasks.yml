@@ -1,0 +1,19 @@
+---
+- name: Download and unpack Storm release
+  unarchive:
+    src: https://downloads.apache.org/storm/apache-storm-{{storm_version}}/apache-storm-{{storm_version}}.tar.gz
+    dest: "{{ storm_home | dirname }}"
+    remote_src: true
+
+- name: Setup .bashrc
+  blockinfile:
+    dest: ~/.bashrc
+    state: present
+    block: |
+      export STORM_HOME={{ storm_home }}
+      export PATH=${PATH}:${STORM_HOME}/bin
+
+- name: Setup storm.yaml
+  template:
+    src: storm.yaml.j2
+    dest: "{{ storm_home }}/conf/storm.yaml"

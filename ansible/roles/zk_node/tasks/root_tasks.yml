@@ -1,0 +1,31 @@
+---
+- name: Make sure java 8 is present
+  yum:
+    name: java-1.8.0-openjdk
+    state: present
+
+- name: Add zookeeper user
+  user:
+    name: zookeeper
+    state: present
+
+- name: Make zookeeper data directory
+  file:
+    path: /data/zookeeper
+    owner: zookeeper
+    group: zookeeper
+    state: directory
+
+- name: Setup supervisord.conf
+  notify: supervisord reload
+  blockinfile:
+    dest: ~/supervisord.conf
+    marker: "; {mark} ZOOKEEPER BLOCK"
+    block: |
+      [program:zookeeper]
+      directory={{ zk_home }}
+      command={{ zk_home }}/bin/zkServer.sh start-foreground
+      user=zookeeper
+      autorestart=true
+      stopsignal=KILL
+      redirect_stderr=true

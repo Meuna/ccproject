@@ -1,0 +1,48 @@
+---
+- name: Make sure java 8 is installed
+  yum:
+    name: java-1.8.0-openjdk
+    state: present
+
+- name: Add repository
+  yum_repository:
+    name: apache-cassandra
+    description: Apache Cassandra repository
+    baseurl: https://downloads.apache.org/cassandra/redhat/311x/
+    gpgcheck: true
+    repo_gpgcheck: true
+    gpgkey: https://downloads.apache.org/cassandra/KEYS
+
+- name: Make sure cassandra is installed
+  yum:
+    name: cassandra
+    state: present
+
+- name: Create a ext4 filesystem on /dev/sdf and check disk blocks
+  filesystem:
+    fstype: ext4
+    dev: /dev/nvme0n1
+
+- name: Mount /data folder
+  mount:
+    path: /data
+    src: /dev/nvme0n1
+    fstype: ext4
+    state: mounted
+
+- name: Make cassandra data directory
+  file:
+    path: /data/cassandra
+    owner: cassandra
+    group: cassandra
+    state: directory
+
+- name: Setup cassandra.yaml
+  template:
+    src: cassandra.yaml.j2
+    dest: /etc/cassandra/conf/cassandra.yaml
+
+- name: Start cassandra
+  shell:
+    cmd: service cassandra restart
+    warn: false

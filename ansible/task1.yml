@@ -1,0 +1,30 @@
+---
+- hosts: all
+  roles:
+    - node
+
+- hosts: hdfs_cluster:cassandra_cluster
+  become: true
+  tasks:
+
+  - name: Create a ext4 filesystem on /dev/sdf and check disk blocks
+    filesystem:
+      fstype: ext4
+      dev: /dev/sdb
+
+  - name: Mount /data folder
+    mount:
+      path: /data
+      src: /dev/sdb
+      fstype: ext4
+      state: mounted
+
+- import_playbook: hdfs_cluster.yml
+
+- hosts: cassandra_cluster
+  roles:
+    - cassandra_node
+
+- hosts: bastion
+  roles:
+    - webserver

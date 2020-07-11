@@ -1,0 +1,32 @@
+---
+- name: Install supervisord
+  pip:
+    name: supervisor
+
+- name: Setup supervisord.conf
+  blockinfile:
+    dest: ~/supervisord.conf
+    create: true
+    marker: "; {mark} MAIN BLOCK"
+    block: |
+      [supervisord]
+
+      [supervisorctl]
+      serverurl=http://localhost:9001
+
+      [inet_http_server]
+      port=localhost:9001
+
+      [rpcinterface:supervisor]
+      supervisor.rpcinterface_factory=supervisor.rpcinterface:make_main_rpcinterface
+
+- name: Check if supervisord is running
+  register: check_supervisord
+  shell: supervisorctl -c ~/supervisord.conf version
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+
+- name: Start supervisord
+  when: check_supervisord.failed
+  shell: supervisord -c ~/supervisord.conf

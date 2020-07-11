@@ -1,0 +1,162 @@
+---
+- name: Download and unpack Hadoop release
+  unarchive:
+    src: https://downloads.apache.org/hadoop/common/hadoop-{{hadoop_version}}/hadoop-{{hadoop_version}}.tar.gz
+    dest: "{{ hadoop_home | dirname }}"
+    remote_src: true
+
+- name: Setup JRE
+  lineinfile:
+    dest: "{{ hadoop_home }}/etc/hadoop/hadoop-env.sh"
+    state: present
+    regexp: ^(# )?export JAVA_HOME
+    line: export JAVA_HOME=/etc/alternatives/jre
+
+- name: Setup .bashrc
+  blockinfile:
+    dest: ~/.bashrc
+    state: present
+    block: |
+      export HADOOP_HOME={{ hadoop_home }}
+      export PATH=${PATH}:${HADOOP_HOME}/bin:${HADOOP_HOME}/sbin
+
+- name: Setup workers
+  copy:
+    dest: "{{ hadoop_home }}/etc/hadoop/workers"
+    content: "{{ groups['hdfs_worker'] | join('\n') }}"
+
+- name: Setup core-site.xml
+  blockinfile:
+    dest: "{{ hadoop_home }}/etc/hadoop/core-site.xml"
+    state: present
+    insertbefore: </configuration>
+    marker: <!-- {mark} ANSIBLE MANAGED BLOCK -->
+    block: |
+      <property>
+        <name>fs.default.name</name>
+        <value>hdfs://master:9000</value>
+      </property>
+
+- name: Setup hdfs-site.conf
+  blockinfile:
+    dest: "{{ hadoop_home }}/etc/hadoop/hdfs-site.xml"
+    state: present
+    insertbefore: </configuration>
+    marker: <!-- {mark} ANSIBLE MANAGED BLOCK -->
+    block: |
+      <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>/data/hadoop/nameNode</value>
+      </property>
+      <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>/data/hadoop/dataNode</value>
+      </property>
+      <property>
+        <name>dfs.replication</name>
+        <value>1</value>
+      </property>
+
+- name: Setup mapred-site.xml
+  blockinfile:
+    dest: "{{ hadoop_home }}/etc/hadoop/mapred-site.xml"
+    state: present
+    insertbefore: </configuration>
+    marker: <!-- {mark} ANSIBLE MANAGED BLOCK -->
+    block: |
+      <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+      </property>
+      <property>
+        <name>yarn.app.mapreduce.am.env</name>
+        <value>HADOOP_MAPRED_HOME=$HADOOP_HOME</value>
+      </property>
+      <property>
+        <name>mapreduce.map.env</name>
+        <value>HADOOP_MAPRED_HOME=$HADOOP_HOME</value>
+      </property>
+      <property>
+        <name>mapreduce.reduce.env</name>
+        <value>HADOOP_MAPRED_HOME=$HADOOP_HOME</value>
+      </property>
+      <property>
+        <name>yarn.app.mapreduce.am.resource.mb</name>
+        <value>{{ yarn.app.mapreduce.am.resource.mb }}</value>
+      </property>
+      <property>
+        <name>yarn.app.mapreduce.am.resource.cpu-vcores</name>
+        <value>{{ yarn.app.mapreduce.am.resource.cpu_vcores }}</value>
+      </property>
+      <property>
+        <name>yarn.app.mapreduce.command-opts</name>
+        <value>{{ yarn.app.mapreduce.command_opts }}</value>
+      </property>
+      <property>
+        <name>mapreduce.map.memory.mb</name>
+        <value>{{ mapreduce.map.memory.mb }}</value>
+      </property>
+      <property>
+        <name>mapreduce.map.java.opts</name>
+        <value>{{ mapreduce.map.java.opts }}</value>
+      </property>
+      <property>
+        <name>mapreduce.map.java.vcores</name>
+        <value>{{ mapreduce.map.cpu.vcores }}</value>
+      </property>
+      <property>
+        <name>mapreduce.reduce.memory.mb</name>
+        <value>{{ mapreduce.reduce.memory.mb }}</value>
+      </property>
+      <property>
+        <name>mapreduce.reduce.java.opts</name>
+        <value>{{ mapreduce.reduce.java.opts}}</value>
+      </property>
+      <property>
+        <name>mapreduce.reduce.java.vcores</name>
+        <value>{{ mapreduce.reduce.cpu.vcores }}</value>
+      </property>
+
+- name: Setup yarn-site.xml
+  blockinfile:
+    dest: "{{ hadoop_home }}/etc/hadoop/yarn-site.xml"
+    state: present
+    insertbefore: </configuration>
+    marker: <!-- {mark} ANSIBLE MANAGED BLOCK -->
+    block: |
+      <property>
+        <name>yarn.acl.enable</name>
+        <value>0</value>
+      </property>
+      <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>master</value>
+      </property>
+      <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+      </property>
+      <property>
+        <name>yarn.nodemanager.resource.memory-mb</name>
+        <value>{{ yarn.nodemanager.resource.memory_mb }}</value>
+      </property>
+      <property>
+        <name>yarn.scheduler.maximum-allocation-mb</name>
+        <value>{{ yarn.scheduler.maximum_allocation_mb }}</value>
+      </property>
+      <property>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>{{ yarn.scheduler.minimum_allocation_mb }}</value>
+      </property>
+      <property>
+        <name>yarn.scheduler.minimum-allocation-vcores</name>
+        <value>{{ yarn.scheduler.minimum_allocation_vcores }}</value>
+      </property>
+      <property>
+        <name>yarn.scheduler.maximum-allocation-vcores</name>
+        <value>{{ yarn.scheduler.maximum_allocation_vcores }}</value>
+      </property>
+      <property>
+        <name>yarn.nodemanager.vmem-check-enabled</name>
+        <value>false</value>
+      </property>

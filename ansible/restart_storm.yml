@@ -1,0 +1,95 @@
+---
+# - name: Start supervisord
+#   hosts: storm_worker
+#   become: true
+#   tasks:
+
+#     - name: Start supervisord
+#       shell: supervisord -c ~/supervisord.conf
+
+- name: Stop storm Nimbus
+  hosts: storm_nimbus
+  become: true
+  become_user: storm
+  tasks:
+
+  - supervisorctl:
+      name: storm-nimbus
+      state: stopped
+
+  - supervisorctl:
+      name: storm-ui
+      state: stopped
+
+- name: Stop storm supervisors
+  hosts: storm_worker
+  become: true
+  become_user: storm
+  tasks:
+
+  - supervisorctl:
+      name: storm-supervisor
+      state: stopped
+
+- name: Clear ZK storm data
+  hosts: zk_cluster
+  become: true
+  become_user: zookeeper
+  tasks:
+
+  - shell: . ~/.bashrc && zkCli.sh deleteall /storm
+    run_once: true
+
+- name: Clear storm data
+  hosts: storm_cluster
+  become: true
+  become_user: storm
+  tasks:
+
+  - file:
+      path: ~/apache-storm-2.1.0/logs/
+      state: absent
+
+  - file:
+      path: /data/storm/blobs
+      state: absent
+
+  - file:
+      path: /data/storm/nimbus
+      state: absent
+
+  - file:
+      path: /data/storm/supervisor
+      state: absent
+
+  - file:
+      path: /data/storm/workers
+      state: absent
+
+  - file:
+      path: /data/storm/workers-users
+      state: absent
+
+- name: Start storm Nimbus
+  hosts: storm_nimbus
+  become: true
+  become_user: storm
+  tasks:
+
+  - supervisorctl:
+      name: storm-nimbus
+      state: started
+
+  - supervisorctl:
+      name: storm-ui
+      state: started
+
+- name: Start storm supervisors
+  hosts: storm_worker
+  become: true
+  become_user: storm
+  tasks:
+
+  - supervisorctl:
+      name: storm-supervisor
+      state: started

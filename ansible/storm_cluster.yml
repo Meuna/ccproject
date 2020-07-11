@@ -1,0 +1,28 @@
+---
+- hosts: storm_cluster
+  roles:
+    - storm_node
+
+- name: Start storm Nimbus
+  hosts: storm_nimbus
+  become: true
+  become_user: storm
+  tasks:
+
+  - supervisorctl:
+      name: storm-nimbus
+      state: started
+
+  - supervisorctl:
+      name: storm-ui
+      state: started
+
+- name: Start storm supervisors
+  hosts: storm_worker
+  become: true
+  become_user: storm
+  tasks:
+
+  - supervisorctl:
+      name: storm-supervisor
+      state: started

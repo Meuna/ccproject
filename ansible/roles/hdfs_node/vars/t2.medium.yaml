@@ -1,0 +1,32 @@
+yarn:
+  app:
+    mapreduce:
+      am:
+        resource:
+          cpu_vcores: 1
+          mb: 512
+      command_opts: -Xmx410m
+  nodemanager:
+    resource:
+      memory_mb: 3072
+  scheduler:
+    minimum_allocation_mb: 256
+    maximum_allocation_mb: 3072
+    minimum_allocation_vcores: 1
+    maximum_allocation_vcores: 4
+
+mapreduce:
+  map:
+    memory:
+      mb: 512
+    java:
+      opts: -Xmx410m
+    cpu:
+      vcores: 1
+  reduce:
+    memory:
+      mb: 1536
+    java:
+      opts: -Xmx1228m
+    cpu:
+      vcores: 1

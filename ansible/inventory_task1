@@ -1,0 +1,17 @@
+bastion
+
+[hdfs_master]
+master
+
+[hdfs_worker]
+node[1:6]
+
+[hdfs_cluster:children]
+hdfs_master
+hdfs_worker
+
+[cassandra_cluster]
+node[7:9]
+
+[cassandra_seeds]
+node7

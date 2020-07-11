@@ -1,0 +1,40 @@
+---
+- name: Build hosts file
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '.*\s{{ item }}$'
+    line: "{{ hostvars[item].ansible_default_ipv4.address }} {{item}}"
+    state: present
+  loop: "{{ ansible_play_batch }}"
+
+- name: Make sure we have a 'wheel' group
+  group:
+    name: wheel
+    state: present
+
+- name: Allow 'wheel' group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: Check if pip is installed
+  register: checkpip
+  command: pip --version
+  ignore_errors: true
+  changed_when: false
+  no_log: true
+
+- name: Get pip
+  when: checkpip.failed
+  get_url:
+    url: https://bootstrap.pypa.io/get-pip.py
+    dest: "~"
+
+- name: Install pip
+  when: checkpip.failed
+  shell:
+    cmd: python get-pip.py
+    chdir: "~"

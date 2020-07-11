@@ -1,0 +1,50 @@
+---
+- name: Setup ccproject data
+  hosts: storm_cluster
+  become: true
+  become_user: storm
+  tasks:
+
+  - name: Download airlines data
+    get_url:
+      url: https://ccproject-bucket.s3.eu-west-3.amazonaws.com/airline_ontime_clean.gz
+      dest: /data/storm
+
+  - name: Hacky sort python script
+    copy:
+      dest: ~/sort_pipe.py
+      content: |
+        import sys
+
+        def line_key(line):
+            return line.split(';')[0]
+
+        lines = sys.stdin.readlines()
+        sorted_lines = sorted(lines, key=line_key)
+        sys.stdout.writelines(sorted_lines)
+
+  - name: Extract 2008 data
+    shell: zcat /data/storm/airline_ontime_clean.gz | grep 2008- | python ~/sort_pipe.py | gzip > /data/storm/airline_ontime_2008_clean.gz
+
+- name: Intall node libs
+  hosts: master
+  become: true
+  tasks:
+
+  - name: Install cassandra-driver
+    pip:
+      name: cassandra-driver
+
+- name: Setup ccproject data
+  hosts: master
+  become: true
+  become_user: storm
+  tasks:
+
+  - name: Upload ccproject code
+    copy:
+      src: ../src
+      dest: "~"
+
+  - name: Create CassandraDB tables
+    shell: python ~/src/stream/setup_cassandradb.py

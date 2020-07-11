@@ -1,0 +1,2 @@
+zk_version: 3.6.1
+zk_home: /home/zookeeper/apache-zookeeper-{{zk_version}}-bin

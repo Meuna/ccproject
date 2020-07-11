@@ -1,0 +1,45 @@
+---
+- name: Make sure java 8 is present
+  yum:
+    name: java-1.8.0-openjdk
+    state: present
+
+- name: Add kafka user
+  user:
+    name: kafka
+    state: present
+
+- name: Make kafka data directory
+  file:
+    path: /data/kafka
+    owner: kafka
+    group: kafka
+    state: directory
+
+- name: Setup supervisord.conf
+  notify: supervisord reload
+  blockinfile:
+    dest: ~/supervisord.conf
+    marker: "; {mark} KAFKA BLOCK"
+    block: |
+      [group:kafka]
+      programs=kafka-server,kafka-connect
+
+      [program:kafka-server]
+      priority=100
+      directory={{ kafka_home }}
+      command={{ kafka_home }}/bin/kafka-server-start.sh {{ kafka_home }}/config/server.properties
+      user=kafka
+      autorestart=true
+      stopsignal=KILL
+      redirect_stderr=true
+      environment=KAFKA_HEAP_OPTS="-Xmx4g"
+
+      [program:kafka-connect]
+      priority=200
+      directory={{ kafka_home }}
+      command={{ kafka_home }}/bin/connect-distributed.sh {{ kafka_home }}/config/connect-distributed.properties
+      user=kafka
+      autorestart=true
+      stopsignal=KILL
+      redirect_stderr=true

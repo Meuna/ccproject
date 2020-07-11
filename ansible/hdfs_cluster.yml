@@ -1,0 +1,40 @@
+---
+- hosts: hdfs_cluster
+  roles:
+    - role: hdfs_node
+      ec_type_master: t2.xlarge
+      ec_type_node: t2.medium
+
+- name: Open ssh access within cluster
+  hosts: hdfs_cluster
+  become: true
+  tasks:
+
+  - name: Generate ssh-keys
+    become: true
+    user:
+      name: hadoop
+      generate_ssh_key : true
+      force: true
+    register: ssh
+
+  - name: Authorize keys between nodes
+    become: true
+    authorized_key:
+      user: hadoop
+      key: "{{ hostvars[item]['ssh']['ssh_public_key'] }}"
+      state: present
+    loop: "{{ ansible_play_batch }}"
+
+
+- name: Start cluster
+  hosts: master
+  become: true
+  become_user: hadoop
+  tasks:
+
+  - name: Format namenode
+    shell: source ~/.bashrc && hdfs namenode -format
+
+  - name: Start hdfs services
+    shell: source ~/.bashrc && start-hdfs.sh
